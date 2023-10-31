@@ -21,6 +21,7 @@ import org.springframework.batch.item.data.RepositoryItemReader;
 import org.springframework.batch.item.data.RepositoryItemWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.TaskExecutor;
@@ -37,6 +38,12 @@ public class SpringBatchConfig {
 
   @Autowired private CustomerPartitioner customerPartitioner;
 
+  @Value("${GRID_SIZE}")
+  public int gridSize;
+
+  @Value("${CHUNK_SIZE}")
+  public int chunkSize;
+
   // tasklet to read count
   @Bean
   public RecordCounterTasklet recordCounterTasklet() {
@@ -49,7 +56,7 @@ public class SpringBatchConfig {
     RepositoryItemReader<Customer> reader = new RepositoryItemReader<>();
     reader.setRepository(customerRepo);
     reader.setMethodName("findAll");
-    reader.setPageSize(100);
+    reader.setPageSize(chunkSize * gridSize);
     Map<String, Direction> sorts = new HashMap<>();
     sorts.put("id", Direction.ASC);
     reader.setSort(sorts);
@@ -86,9 +93,9 @@ public class SpringBatchConfig {
   @Bean
   public TaskExecutor taskExecutor() {
     ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
-    taskExecutor.setMaxPoolSize(10);
-    taskExecutor.setCorePoolSize(10);
-    taskExecutor.setQueueCapacity(10);
+    taskExecutor.setMaxPoolSize(gridSize);
+    taskExecutor.setCorePoolSize(gridSize);
+    taskExecutor.setQueueCapacity(gridSize);
     return taskExecutor;
   }
 
@@ -102,7 +109,7 @@ public class SpringBatchConfig {
   @Bean
   public PartitionHandler customerPartitionHandler(@Qualifier("slaveStep") Step slaveStep) {
     TaskExecutorPartitionHandler handler = new TaskExecutorPartitionHandler();
-    handler.setGridSize(10);
+    handler.setGridSize(gridSize);
     handler.setStep(slaveStep);
     handler.setTaskExecutor(taskExecutor());
     return handler;
@@ -113,7 +120,7 @@ public class SpringBatchConfig {
   public Step slaveStep(
       JobRepository jobRepository, PlatformTransactionManager transactionManager) {
     return new StepBuilder("slaveStep", jobRepository)
-        .<Customer, Customer>chunk(20, transactionManager)
+        .<Customer, Customer>chunk(chunkSize, transactionManager)
         .reader(customerItemReader())
         .processor(customerProcessor())
         .writer(customWriter())

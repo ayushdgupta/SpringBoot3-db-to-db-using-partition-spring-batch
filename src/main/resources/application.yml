@@ -17,3 +17,6 @@ spring:
       initialize-schema: "always"
     job:
       enabled: false
+
+GRID_SIZE: 10
+CHUNK_SIZE: 20

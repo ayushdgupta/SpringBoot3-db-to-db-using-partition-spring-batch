@@ -13,7 +13,7 @@ public class CustomerProcessor implements ItemProcessor<Customer, Customer> {
 
   @Override
   public Customer process(Customer item) throws Exception {
-    LOG.info("process the record {}", item.getId());
+    //    LOG.info("process the record {}", item.getId());
     item.setCountry(Constant.COUNTRY);
     return null;
   }
